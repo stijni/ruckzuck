@@ -22,6 +22,9 @@ namespace RZ.Server.Controllers
         private IHttpContextAccessor _accessor;
         public static string sbconnection = "";
         public static TopicClient tcRuckZuck = null;
+        public static DateTime tLoadTime = new DateTime();
+        public static bool bOverload = false;
+        public static long lCount = 0;
         //public AzureLogAnalytics AzureLog = new AzureLogAnalytics("", "", "");
 
         public RZController(IMemoryCache memoryCache, IHubContext<Default> hubContext, IHttpContextAccessor accessor)
@@ -54,6 +57,21 @@ namespace RZ.Server.Controllers
         {
             string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
 
+            if ((DateTime.Now - tLoadTime).TotalSeconds >= 60)
+            {
+                if (lCount > 60)
+                    bOverload = true;
+                else
+                    bOverload = false;
+
+                lCount = 0;
+                tLoadTime = DateTime.Now;
+            }
+            else
+            {
+                lCount++;
+            }
+
             if (!Base.ValidateIP(ClientIP))
             {
                 if (Environment.GetEnvironmentVariable("EnforceGetURL") == "true")
@@ -80,7 +98,8 @@ namespace RZ.Server.Controllers
                 return Content(jTop.ToString());
             }
 
-            _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Catalog</li>");
+            if (!bOverload)
+                _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Catalog</li>");
             Base.WriteLog($"Get Catalog", ClientIP, 1200, customerid);
 
             JArray aRes = new JArray();
@@ -175,7 +194,8 @@ namespace RZ.Server.Controllers
                 }
                 else
                 {
-                    _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Definition for '" + shortname + "'</li>");
+                    if (!bOverload)
+                        _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Definition for '" + shortname + "'</li>");
                     Base.WriteLog($"Get Definition for: {shortname}", ClientIP, 1500, customerid);
                 }
 
@@ -190,7 +210,8 @@ namespace RZ.Server.Controllers
                 }
                 else
                 {
-                    _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Definition for '" + name + "'</li>");
+                    if (!bOverload)
+                        _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - Get Definition for '" + name + "'</li>");
                     Base.WriteLog($"Get Definition for: {name}", ClientIP, 1500, customerid);
                 }
 
@@ -334,6 +355,21 @@ namespace RZ.Server.Controllers
         {
             string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
 
+            if ((DateTime.Now - tLoadTime).TotalSeconds >= 60)
+            {
+                if (lCount > 60)
+                    bOverload = true;
+                else
+                    bOverload = false;
+
+                lCount = 0;
+                tLoadTime = DateTime.Now;
+            }
+            else
+            {
+                lCount++;
+            }
+
             if (!Base.ValidateIP(ClientIP))
             {
                 if (Environment.GetEnvironmentVariable("EnforceGetURL") == "true")
@@ -357,27 +393,31 @@ namespace RZ.Server.Controllers
             {
                 try
                 {
-                    Message bMSG;
-                    bMSG = new Message() { Label = "RuckZuck/WCF/downloaded/" + shortname, TimeToLive = new TimeSpan(24, 0, 0) };
-                    bMSG.UserProperties.Add("ShortName", shortname);
-                    bMSG.UserProperties.Add("ClientIP", ClientIP);
-                    bMSG.UserProperties.Add("CustomerID", customerid);
-
-                    if (!string.IsNullOrEmpty(sbconnection))
+                    if (!bOverload)
                     {
-                        if (tcRuckZuck == null)
+                        Message bMSG;
+                        bMSG = new Message() { Label = "RuckZuck/WCF/downloaded/" + shortname, TimeToLive = new TimeSpan(24, 0, 0) };
+                        bMSG.UserProperties.Add("ShortName", shortname);
+                        bMSG.UserProperties.Add("ClientIP", ClientIP);
+                        bMSG.UserProperties.Add("CustomerID", customerid);
+
+                        if (!string.IsNullOrEmpty(sbconnection))
                         {
-                            Console.WriteLine("SBConnection:" + sbconnection);
-                            tcRuckZuck = new TopicClient(sbconnection, "RuckZuck", RetryPolicy.Default);
+                            if (tcRuckZuck == null)
+                            {
+                                Console.WriteLine("SBConnection:" + sbconnection);
+                                tcRuckZuck = new TopicClient(sbconnection, "RuckZuck", RetryPolicy.Default);
+                            }
                         }
+                        else
+                            tcRuckZuck = null;
+
+                        if (tcRuckZuck != null)
+                            tcRuckZuck.SendAsync(bMSG);
                     }
-                    else
-                        tcRuckZuck = null;
 
-                    if (tcRuckZuck != null)
-                        tcRuckZuck.SendAsync(bMSG);
-
-                    _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-info\">%tt% - content downloaded (" + shortname + ")</li>");
+                    if (!bOverload)
+                        _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-info\">%tt% - content downloaded (" + shortname + ")</li>");
 
                     Base.WriteLog($"Content donwloaded: {shortname}", ClientIP, 1300, customerid);
                 }
@@ -442,6 +482,21 @@ namespace RZ.Server.Controllers
         {
             string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
 
+            if ((DateTime.Now - tLoadTime).TotalSeconds >= 60)
+            {
+                if (lCount > 60)
+                    bOverload = true;
+                else
+                    bOverload = false;
+
+                lCount = 0;
+                tLoadTime = DateTime.Now;
+            }
+            else
+            {
+                lCount++;
+            }
+
             if (!Base.ValidateIP(ClientIP))
             {
                 if (Environment.GetEnvironmentVariable("EnforceGetURL") == "true")
@@ -466,7 +521,8 @@ namespace RZ.Server.Controllers
 
                 string sResult = Base.CheckForUpdates(jItems, customerid).ToString();
                 TimeSpan tDuration = DateTime.Now - dStart;
-                _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - CheckForUpdates(items: " + jItems.Count + " , duration: " + Math.Round(tDuration.TotalSeconds).ToString() + "s) </li>");
+                if (!bOverload)
+                    _hubContext.Clients.All.SendAsync("Append", "<li class=\"list-group-item list-group-item-light\">%tt% - CheckForUpdates(items: " + jItems.Count + " , duration: " + Math.Round(tDuration.TotalSeconds).ToString() + "s) </li>");
                 Console.WriteLine("V2 UpdateCheck duration: " + tDuration.TotalMilliseconds.ToString() + "ms");
                 Base.WriteLog("V2 UpdateCheck duration: " + Math.Round(tDuration.TotalSeconds).ToString() + "s", ClientIP, 1100, customerid);
                 return Content(sResult);
@@ -474,7 +530,55 @@ namespace RZ.Server.Controllers
             else
                 return Content((new JArray()).ToString());
         }
-        
+
+        [HttpPost]
+        [Route("rest/v2/showstatus")]
+        public ActionResult ShowStatus(string code= "", int mType = 0, string statustext = "")
+        {
+            if (code == Environment.GetEnvironmentVariable("StatusCode"))
+            {
+                string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
+
+                if ((DateTime.Now - tLoadTime).TotalSeconds >= 60)
+                {
+                    if (lCount > 60)
+                        bOverload = true;
+                    else
+                        bOverload = false;
+
+                    lCount = 0;
+                    tLoadTime = DateTime.Now;
+                }
+                else
+                {
+                    lCount++;
+                }
+
+                if (!bOverload)
+                {
+                    switch (mType)
+                    {
+                        case 0:
+                            _hubContext.Clients.All.SendAsync("Append", $"<li class=\"list-group-item list-group-item-light\">%tt% - { statustext }</li>");
+                            break;
+                        case 1:
+                            _hubContext.Clients.All.SendAsync("Append", $"<li class=\"list-group-item list-group-item-warning\">%tt% - { statustext }</li>");
+                            break;
+                        case 2:
+                            _hubContext.Clients.All.SendAsync("Append", $"<li class=\"list-group-item list-group-item-danger\">%tt% - { statustext }</li>");
+                            break;
+                        case 3:
+                            _hubContext.Clients.All.SendAsync("Append", $"<li class=\"list-group-item list-group-item-success\">%tt% - { statustext }</li>");
+                            break;
+                        case 4:
+                            _hubContext.Clients.All.SendAsync("Append", $"<li class=\"list-group-item list-group-item-info\">%tt% - { statustext }</li>");
+                            break;
+                    }
+                }
+            }
+            return new OkResult();
+        }
+
         [HttpGet]
         [Route("rest/v2/GetPendingApproval")]
         public ActionResult GetPendingApproval(string customerid = "")
@@ -488,6 +592,12 @@ namespace RZ.Server.Controllers
         {
             try
             {
+                //if (bOverload)
+                //    return Content("https://cdnromawo.azureedge.net", "text/html");
+
+                //if(lCount > 120)
+                //    return Content("https://cdnromawo.azureedge.net", "text/html");
+
                 string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
                 Base.SetValidIP(ClientIP);
                 Base.WriteLog("Get URL", ClientIP, 1000, customerid);
@@ -495,8 +605,8 @@ namespace RZ.Server.Controllers
             }
             catch
             {
-                //return Content("https://cdn.ruckzuck.tools", "text/html");
-                return Content("https://ruckzuck.tools", "text/html");
+                return Content("https://cdn.ruckzuck.tools", "text/html");
+                //return Content("https://ruckzuck.tools", "text/html");
             }
         }
 
@@ -520,6 +630,21 @@ namespace RZ.Server.Controllers
         {
             string ClientIP = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
 
+            if ((DateTime.Now - tLoadTime).TotalSeconds >= 60)
+            {
+                if (lCount > 60)
+                    bOverload = true;
+                else
+                    bOverload = false;
+
+                lCount = 0;
+                tLoadTime = DateTime.Now;
+            }
+            else
+            {
+                lCount++;
+            }
+
             if (!Base.ValidateIP(ClientIP))
             {
                 if (Environment.GetEnvironmentVariable("EnforceGetURL") == "true")
@@ -537,8 +662,8 @@ namespace RZ.Server.Controllers
             {
                 //if (customerid.StartsWith("212.25.2.73"))
                 //    return;
-                if (customerid.StartsWith("81.246.0.34"))
-                    return;
+                //if (customerid.StartsWith("81.246.0.34"))
+                //    return;
             }
 
             string Shortname = Base.GetShortname(name, ver, man, customerid);

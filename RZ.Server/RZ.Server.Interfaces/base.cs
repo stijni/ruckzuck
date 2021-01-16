@@ -321,7 +321,7 @@ namespace RZ.Server
             }
             catch { }
 
-            return "https://ruckzuck.azurewebsites.net";
+            return "https://cdn.ruckzuck.tools";
         }
 
         public static bool IncCounter(string ShortName = "", string counter = "DL", string customerid = "known")
@@ -720,7 +720,7 @@ namespace RZ.Server
                 //1st check Catalog
                 try
                 {
-                    JArray oCat = GetCatalog("", false);
+                    JArray oCat = GetCatalog(customerid, false);
 
                     var jobj = oCat.SelectTokens("[*]").Where(t => t["ProductName"].ToString().ToLower() == name.ToLower() && t["Manufacturer"].ToString().ToLower() == man.ToLower() && t["ProductVersion"].ToString().ToLower() == ver.ToLower());
                     if (jobj.FirstOrDefault() != null)
