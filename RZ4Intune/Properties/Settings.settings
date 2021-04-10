@@ -446,6 +446,10 @@ function GetWin32AppBody() {
         [ValidateNotNullOrEmpty()]
         [string]$description,
 
+        [parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$displayVersion = "",
+
         [parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$filename,
@@ -535,6 +539,7 @@ function GetWin32AppBody() {
         $body.runAs32bit = $false;
         $body.setupFilePath = $SetupFileName;
         $body.uninstallCommandLine = "msiexec /x `"$MsiProductCode`""
+        $body.displayVersion = "$($displayVersion)"
 
     }
 
@@ -561,7 +566,7 @@ function GetWin32AppBody() {
         if ($imageValue) {
             $body.largeIcon = @{"type" = "image/png"; "value" = $imageValue };
         }
-
+        $body.displayVersion = "$($displayVersion)"
     }
 
     $body;
@@ -941,7 +946,11 @@ NAME: Upload-Win32LOB
 
         [parameter(Mandatory = $true, Position = 13)]
         [ValidateNotNullOrEmpty()]
-        $notes
+        $notes,
+
+        [parameter(Mandatory = $false, Position = 14)]
+        [ValidateNotNullOrEmpty()]
+        $displayVersion = ""
     )
 
     try	{
@@ -1000,8 +1009,8 @@ NAME: Upload-Win32LOB
                 -MsiProductVersion $MsiProductVersion `
                 -MsiPublisher $MsiPublisher `
                 -MsiRequiresReboot $MsiRequiresReboot `
-                -MsiUpgradeCode $MsiUpgradeCode
-
+                -MsiUpgradeCode $MsiUpgradeCode `
+                -displayVersion $displayVersion
         }
 
         else {
@@ -1010,7 +1019,8 @@ NAME: Upload-Win32LOB
                 -description $description -filename $FileName -SetupFileName "$SetupFileName" `
                 -installExperience $installExperience -installCommandLine $installCmdLine `
                 -uninstallCommandLine $uninstallcmdline -imageValue $imageValue `
-                -informationURL $informationURL -developer $developer
+                -informationURL $informationURL -developer $developer `
+                -displayVersion $displayVersion
             if ($notes) { $mobileAppBody.notes = $notes }
         }
 
@@ -1228,9 +1238,6 @@ try {
 catch { Install-Module AzureAD -Force -Confirm:$false }
 
 $ShortName = $args[0]
-$global:authToken = @{ "Content-Type" = "application/json"; "Authorization" = "Bearer $($args[1])" ; "ExpiresOn" = [DateTimeOffset]::Parse($args[2]) }
-$Global:User = $args[3]
-#$global:authToken = Get-AuthToken -User $User
 $outFolder = "$env:temp\intunewin"
 if (-NOT (Test-Path $outFolder)) { New-Item -Path $outFolder -ItemType Directory }
 #Remove-Item $sourceFolder -Recurse -Force -ea SilentlyContinue
@@ -1248,11 +1255,29 @@ if ($rzSW.count -gt 1) {
 $sourceFolder = "$env:temp\$($rzSW.ContentID)"
 $file = $rzSW.ShortName
 $rzSW.Files | ForEach-Object { 
-    #Invoke-WebRequest -Uri $_.URL -OutFile "$($sourceFolder)\$($_.FileName)"
     $file = $_.FileName
+    $_.URL &gt; "$env:temp\$($rzSW.ContentID)\$($file).url"
 }
+
 if (-NOT (Test-Path $sourceFolder)) { New-Item -Path $sourceFolder -ItemType Directory }
 Invoke-WebRequest -Uri $rzSW.iconURL -OutFile "$($sourceFolder)\logo.png"
+$rzSW | ConvertTo-Json &gt; "$($sourceFolder)\package.json"
+
+#README.md
+"# $($rzSW.ShortName)" &gt; "$($sourceFolder)\README.md"
+"$($rzSW.Description)" &gt;&gt; "$($sourceFolder)\README.md"
+"  " &gt;&gt; "$($sourceFolder)\README.md"
+"ProductName: $($rzSW.ProductName)  " &gt;&gt; "$($sourceFolder)\README.md"
+"Manufacturer: $($rzSW.Manufacturer)  " &gt;&gt; "$($sourceFolder)\README.md"
+"Version: $($rzSW.ProductVersion)  " &gt;&gt; "$($sourceFolder)\README.md"
+"URL: $($rzSW.ProductURL)  " &gt;&gt; "$($sourceFolder)\README.md"
+"  " &gt;&gt; "$($sourceFolder)\README.md"
+"Install Command: ``powershell.exe -ExecutionPolicy Bypass .\install.ps1``  "  &gt;&gt; "$($sourceFolder)\README.md"
+"UnInstall Command: ``powershell.exe -ExecutionPolicy Bypass .\uninstall.ps1``  "  &gt;&gt; "$($sourceFolder)\README.md"
+
+$global:authToken = @{ "Content-Type" = "application/json"; "Authorization" = "Bearer $($args[1])" ; "ExpiresOn" = [DateTimeOffset]::Parse($args[2]) }
+$Global:User = $args[3]
+#$global:authToken = Get-AuthToken -User $User
 
 #Download IntuneWinAppUtil
 if (-NOT (Test-Path "$($env:temp)\IntuneWinAppUtil.exe")) {
@@ -1292,6 +1317,9 @@ $reqRule = @(@{"@odata.type"    = "#microsoft.graph.win32LobAppPowerShellScriptR
         "detectionType"         = "boolean"
     })
 
+#fix blank manufacturer    
+if (-NOT $rzSW.Manufacturer) { $rzSW.Manufacturer = $rzSW.ShortName }   
+
 # Win32 Application Upload
 Upload-Win32Lob -SourceFile $SourceFile -displayName ($rzSW.ShortName + " " + $rzSW.ProductVersion) -publisher $rzSW.Manufacturer `
     -description $rzSW.Description -detectionRules $DetectionRule -returnCodes $ReturnCodes `
@@ -1302,7 +1330,8 @@ Upload-Win32Lob -SourceFile $SourceFile -displayName ($rzSW.ShortName + " " + $r
     -requirementRules $reqRule `
     -informationURL $rzSW.ProductURL `
     -developer "RuckZuck" `
-    -notes "RZID:$($rzSW.SWId)`nShortName:$($rzSW.ShortName)`nVersion:$($rzSW.ProductVersion)"
+    -notes "RZID:$($rzSW.SWId)`nShortName:$($rzSW.ShortName)`nVersion:$($rzSW.ProductVersion)" `
+    -displayVersion "$($rzSW.ProductVersion)"
 
 ####################################################</Value>
     </Setting>
@@ -1312,6 +1341,60 @@ Upload-Win32Lob -SourceFile $SourceFile -displayName ($rzSW.ShortName + " " + $r
     </Setting>
     <Setting Name="NoExit" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="azurepipelines" GenerateDefaultValueInCode="false" Type="System.String" Scope="Application">
+      <Value Profile="(Default)"># Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  batch: true
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+    - 'README.md'
+    - 'azure-pipelines.yml'
+
+steps:
+
+- task: UseDotNet@2
+  inputs:
+    version: '3.1.200'
+
+- task: PowerShell@2
+  displayName: 'install IntuneAppBuilder'
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Write your PowerShell commands here.
+      dotnet tool install -g IntuneAppBuilder.Console
+    errorActionPreference: 'silentlyContinue'
+    pwsh: true
+
+- task: DownloadPipelineArtifact@2
+  displayName: 'get CreateIntuneWin.ps1'
+  inputs:
+    buildType: 'specific'
+    project: '1297abd2-0587-4693-877b-07c5b2afe546'
+    definition: '5'
+    buildVersionToDownload: 'latest'
+    targetPath: '$(Pipeline.Workspace)'
+
+- task: PowerShell@2
+  displayName: 'create intunewin file'
+  inputs:
+    filePath: '/home/vsts/work/1/CreateIntunewin/CreateIntuneWin.ps1'
+    arguments: '-RepositoryName "$(Build.Repository.Name)"'
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '/home/vsts/work/1/s/$(Build.Repository.Name)/publish'
+    artifact: 'Intune-package'
+    publishLocation: 'pipeline'
+</Value>
     </Setting>
   </Settings>
 </SettingsFile>

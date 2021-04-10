@@ -46,6 +46,11 @@ namespace RuckZuck_Tool
             DateTime dstart = DateTime.Now;
             InitializeComponent();
 
+            List<string> lSponsors = Properties.Settings.Default.SponsorUrl.Cast<string>().ToList().OrderBy(a => Guid.NewGuid()).ToList();
+            Img1.Source = new BitmapImage(new Uri(lSponsors[0]));
+            Img2.Source = new BitmapImage(new Uri(lSponsors[1]));
+            Img3.Source = new BitmapImage(new Uri(lSponsors[2]));
+
             CommandArgs.AddRange(Environment.GetCommandLineArgs());
             CommandArgs.RemoveAt(0);
 
@@ -253,7 +258,10 @@ namespace RuckZuck_Tool
 
         private void btBackNewSWSMI_Click(object sender, RoutedEventArgs e)
         {
-            tabWizard.SelectedItem = tabMain;
+            if (tabNewSWSMI.Tag != null)
+                tabWizard.SelectedItem = tabNewSWSMI.Tag;
+            else
+                tabWizard.SelectedItem = tabNewSWARP;
         }
 
         private void btBackScanResult_Click(object sender, RoutedEventArgs e)
@@ -330,6 +338,7 @@ namespace RuckZuck_Tool
 
                 }
 
+                tabNewSWSMI.Tag = tabNewSWARP;
                 tabWizard.SelectedItem = tabNewSWSMI;
             }
             finally
@@ -528,6 +537,7 @@ namespace RuckZuck_Tool
 
                             oNewPanel.OpenXML(oSW.SW);
                         }
+                        tabNewSWSMI.Tag = tabWizard.SelectedItem;
                         tabWizard.SelectedItem = tabNewSWSMI;
                     }
 
@@ -546,7 +556,7 @@ namespace RuckZuck_Tool
 
                         oNewPanel.OpenXML(oSW.SW);
 
-
+                        tabNewSWSMI.Tag = tabWizard.SelectedItem;
                         tabWizard.SelectedItem = tabNewSWSMI;
                     }
                 }
@@ -632,6 +642,8 @@ namespace RuckZuck_Tool
                 }
                 catch { }
             }
+
+            lNewVersion = lNewVersion.OrderBy(t=>t.ShortName).ToList();
 
             AnonymousDelegate update = delegate ()
             {

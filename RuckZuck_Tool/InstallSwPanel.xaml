@@ -13,13 +13,36 @@
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0" Margin="5,0,0,0">
             <StackPanel Orientation="Horizontal" >
-                <TextBox x:Name="tbSearch" DockPanel.Dock="Right" Height="24" Width="150" Text="Search..." Foreground="#FFAEACAC" Tag="Search" GotFocus="tbSearch_GotFocus" LostFocus="tbSearch_LostFocus" KeyDown="tbSearch_KeyDown"/>
+                <TextBox x:Name="tbSearch" DockPanel.Dock="Right" Height="24" Width="150" Foreground="Black" Tag="Search" GotFocus="tbSearch_GotFocus" LostFocus="tbSearch_LostFocus" KeyUp="tbSearch_KeyUp">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                            <Style.Resources>
+                                <VisualBrush x:Key="CueBannerBrush" AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                    <VisualBrush.Visual>
+                                        <Label Content="Search..." Foreground="LightGray" />
+                                    </VisualBrush.Visual>
+                                </VisualBrush>
+                            </Style.Resources>
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="{x:Static sys:String.Empty}">
+                                    <Setter Property="Background" Value="{StaticResource CueBannerBrush}" />
+                                </Trigger>
+                                <Trigger Property="Text" Value="{x:Null}">
+                                    <Setter Property="Background" Value="{StaticResource CueBannerBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter Property="Background" Value="White" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
                 <Image Width="24" Height="24" Source="Images/Search_24.png" Margin="1,0,0,0" />
             </StackPanel>
             <StackPanel x:Name="spSupport" Orientation="Horizontal" HorizontalAlignment="Right" Background="{x:Null}" ClipToBounds="True">
                 <ToolBar IsTabStop="True" ToolBarTray.IsLocked="True" Background="{x:Null}" AllowDrop="True" Margin="0,0,-15,0" >
                     <Menu Background="{x:Null}" >
-                        <MenuItem Header="Favorites ">
+                        <MenuItem Header="Support ">
                             <MenuItem.Icon>
                                 <Image Source="Images/Star.ico" />
                             </MenuItem.Icon>
